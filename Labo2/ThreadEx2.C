@@ -19,12 +19,18 @@ Demonty Romain 2201
 //1 = signal sigint
 
 void handlerSignal(int sig);
+void handlerMaster(int sig);
 void*Slave(void *);
+void*Master(void*);
+void fctFinMaster(void *p);
+
+struct sigaction sigAct;
 
 pthread_t trheadHandle1;
 pthread_t trheadHandle2;
 pthread_t trheadHandle3;
 pthread_t trheadHandle4;
+pthread_t trheadHandle5;
 
 int main()
 {
@@ -34,13 +40,25 @@ int main()
 	//armement d'un sigation du signal SIGINT sur un handler et celui qui reçevra affichera son identité et un message bien reçu
 	//après la reception du message pthread_exit()
 	struct sigaction sigAct;
+	sigset_t sigpro;
 
+	//Changement en SIGINT
+	/*
 	sigAct.sa_handler = handlerSignal;
 	sigemptyset(&sigAct.sa_mask);
 	sigAct.sa_flags = 0;
+	sigaction(SIGINT,&sigAct,NULL); //
+	*/
 	
-	sigaction(SIGINT,&sigAct,NULL);
+	//On bloque le signal SIGINT
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGINT);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
 
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGUSR1);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+	
 	//------------------------------------------------------------Création des processus-------------------------------------------
 	printf("Lancement du processus 1:\n"); 
 	pthread_create(&trheadHandle1,NULL,(void*(*)(void*))Slave,NULL);
@@ -53,6 +71,10 @@ int main()
 
 	printf("Lancement du processus 4:\n"); 
 	pthread_create(&trheadHandle4,NULL,(void*(*)(void*))Slave,NULL);
+
+	printf("Lancement du processus Master 5:\n"); 
+	pthread_create(&trheadHandle5,NULL,(void*(*)(void*))Master,NULL);
+	pause();
 
 
 	//------------------------------------------------------------Attente des retours-------------------------------------------
@@ -76,6 +98,9 @@ int main()
 	printf("Thread 4 : Fini de manière %d \n",*rt);
 	free(rt);
 
+	pthread_cancel(trheadHandle5);
+	pthread_join(trheadHandle5,(void**)&rt);
+
 	printf("Fin du thread principal\n");
 	return 0;
 }
@@ -86,17 +111,37 @@ void handlerSignal(int sig)
 	//Pas d'autres moyen ?
 	int *Rt = (int*)malloc(sizeof(int));
 	*Rt = 1;
-	printf("Identité du thread ayant reçu un signal = %u.%u\n",getpid(),pthread_self());
+	printf("Identité du thread ayant reçu un signal de Master = %u.%u\n",getpid(),pthread_self());
 	pthread_exit(Rt);
+}
+
+
+void handlerMaster(int sig)
+{
+	kill(getpid(),SIGUSR1);
 }
 
 void*Slave(void *)
 {
+	sigset_t sigpro;
+
+	//struct sigaction sigAct;
+	sigAct.sa_handler = handlerSignal;
+	sigemptyset(&sigAct.sa_mask);
+	sigAct.sa_flags = 0;
+	sigaction(SIGUSR1,&sigAct,NULL); 
+	//On bloque le signal SIGINT
+	
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGINT);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+	
+
 	int *Rt = (int*)malloc(sizeof(int)); //Si une erreur ou valeur de retour
 
 	//afficher son identité
 	//pthread_self()
-	printf("Identité du thread (création) = %u.%u\n",getpid(),pthread_self());
+	printf("Identité du thread slave = %u.%u\n",getpid(),pthread_self());
 
 	//pause en attendant un signal
 	//pause()
@@ -108,4 +153,44 @@ void*Slave(void *)
  	//se terminer et quitter
  	*Rt = 0;
 	pthread_exit(Rt);
+}
+
+void*Master(void *)
+{
+	int *Rt = (int*)malloc(sizeof(int));
+	pthread_cleanup_push(fctFinMaster,0);
+
+	sigset_t sigpro;
+	//On bloque le signal SIGUSR1
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGUSR1);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+
+	//struct sigaction sigAct;
+	sigAct.sa_handler = handlerMaster;
+	sigemptyset(&sigAct.sa_mask);
+	sigAct.sa_flags = 0;
+	sigaction(SIGINT,&sigAct,NULL); 
+
+	//mise en place d'accord de destruction
+	int ancEtat;
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,&ancEtat);
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,&ancEtat);
+
+	
+
+	printf("Identité du thread Master = %u.%u\n",getpid(),pthread_self());
+
+	//attendre dans une pause
+	while(1)
+	{
+		pause();
+	}
+
+	pthread_cleanup_pop(1);
+}
+
+void fctFinMaster(void *p)
+{
+	printf("Fin de master = %u.%u\n",getpid(),pthread_self());
 }
