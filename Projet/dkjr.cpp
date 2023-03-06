@@ -69,6 +69,9 @@ int  positionDKJr = 1;
 int  evenement = AUCUN_EVENEMENT;
 int etatDKJr;
 
+//Nombre de vie
+int vie = 0;
+
 typedef struct
 {
   int type;
@@ -83,10 +86,18 @@ typedef struct
   int position;
 } S_CROCO;
 
+struct sigaction sigAct;
+sigset_t sigpro;
+
 // ------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
+	sigAct.sa_handler = HandlerSIGQUIT;
+	sigemptyset(&sigAct.sa_mask);
+	sigAct.sa_flags = 0;
+	sigaction(SIGQUIT,&sigAct,NULL);
+
 	//int evt;
 
 	ouvrirFenetreGraphique();
@@ -108,12 +119,17 @@ int main(int argc, char* argv[])
 	
 	//effacerCarres(9, 10, 2, 1);
 
-	afficherEchec(0);//1
+	afficherEchec(vie);//1
 	afficherScore(0);//1999
 
 	pthread_create(&threadCle,NULL,(void*(*)(void*))FctThreadCle,NULL);
 	pthread_create(&threadEvenements,NULL,(void*(*)(void*))FctThreadEvenements,NULL);
 	pthread_create(&threadDKJr,NULL,(void*(*)(void*))FctThreadDKJr,NULL);
+
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGQUIT);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+
 	/*
 	while (1)
 	{
@@ -182,6 +198,10 @@ void afficherGrilleJeu()
 
 void* FctThreadCle(void *)
 {
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGQUIT);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+
 	printf("Lancement du thread de la cle\n");
 	int sens = 1;//savoir dans quelle sens la clé se déplace(0 = gauche , 1, droite)
 	int i =1; //positionnement de la clé (1,2,3,4)
@@ -229,7 +249,11 @@ void* FctThreadCle(void *)
 
 void* FctThreadEvenements(void *)
 {	
-	struct timespec temps;//Le temps entre attente e mouvement
+	sigemptyset(&sigpro);
+	sigaddset(&sigpro,SIGQUIT);
+	sigprocmask(SIG_SETMASK,&sigpro,NULL);
+
+	struct timespec temps;//Le temps entre attente de mouvement
 	temps.tv_sec = 0;
 	temps.tv_nsec = 100000000;
 	while (1)
@@ -257,7 +281,7 @@ void* FctThreadEvenements(void *)
 		pthread_mutex_unlock(&mutexEvenement);
 
 		//Pas sur : 
-		//kill(getpid(),SIGQUIT);
+		pthread_kill(threadDKJr,SIGQUIT);
 		nanosleep(&temps,NULL);
 
 		pthread_mutex_lock(&mutexEvenement);
@@ -268,15 +292,13 @@ void* FctThreadEvenements(void *)
 
 void HandlerSIGQUIT(int)
 {
-	/*
-	pthread_mutex_lock(&mutexEvenement);
-	if()
-	pthread_mutex_unlock(&mutexEvenement);
-	*/
+	//sert juste a quitter la pause
 }
 
 void* FctThreadDKJr(void *)
 {	
+	struct timespec temps;//Le temps entre attente la sortie d buisson et l'accroche à la lianne
+
 	bool on = true;
 	pthread_mutex_lock(&mutexGrilleJeu);
 	setGrilleJeu(3, 1, DKJR);
@@ -295,27 +317,132 @@ void* FctThreadDKJr(void *)
 			switch (evenement)
 			{
 				case SDLK_LEFT:
-				if (positionDKJr > 1)
+				if (positionDKJr > 0)
+				{
+					if(positionDKJr == 1)
+					{
+						//Si le singe tombe dans le buisson à droite sur la ligne du bas
+						setGrilleJeu(3, positionDKJr);
+						effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+						positionDKJr--;
+						setGrilleJeu(3, positionDKJr, DKJR);
+						afficherDKJr(11, (positionDKJr * 2) + 7,13);
+
+						vie ++;
+						if(vie < 4)
+						{
+							afficherEchec(vie);
+						}
+						else
+						{
+							printf("Vous avez perdu\n");
+						}
+					}
+					else
+					{
+						setGrilleJeu(3, positionDKJr);
+						effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+						positionDKJr--;
+						setGrilleJeu(3, positionDKJr, DKJR);
+						afficherDKJr(11, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
+					}
+
+				}
+				break;
+				case SDLK_RIGHT:
+				if(positionDKJr < 7)
 				{
 					setGrilleJeu(3, positionDKJr);
 					effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
-					positionDKJr--;
+					positionDKJr++;
 					setGrilleJeu(3, positionDKJr, DKJR);
 					afficherDKJr(11, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
 				}
 				break;
-				case SDLK_RIGHT:
-				
-				break;
 				case SDLK_UP:
-				
+				if(positionDKJr == 1 || positionDKJr == 5)
+				{
+					setGrilleJeu(3, positionDKJr);
+					effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+					setGrilleJeu(2,positionDKJr,DKJR);
+					afficherDKJr(10, (positionDKJr * 2) + 7,7);
+					etatDKJr = LIANE_BAS;
+				}
+				else
+				{
+					if(positionDKJr == 7)
+					{
+						setGrilleJeu(3, positionDKJr);
+						effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+						setGrilleJeu(2,positionDKJr,DKJR);
+						afficherDKJr(10, (positionDKJr * 2) + 7,5);
+						etatDKJr = DOUBLE_LIANE_BAS;
+					}
+					else
+					{
+						//Le faire sauter au dessus du buisson, puis le mettre sur la lianne de droite
+						if(positionDKJr == 0)
+						{
+							//le faire sauter normalement
+							setGrilleJeu(3, positionDKJr);
+							effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+							setGrilleJeu(2,positionDKJr,DKJR);
+							afficherDKJr(10, (positionDKJr * 2) + 7,8);
+
+							//petite pause pour découper le mouvement
+							pthread_mutex_unlock(&mutexGrilleJeu);
+							temps.tv_sec = 0;
+							temps.tv_nsec = 10000000000;
+							nanosleep(&temps, NULL);
+							pthread_mutex_lock(&mutexGrilleJeu);
+
+							//le remettre sur la première liane de base à gauche
+							setGrilleJeu(2, positionDKJr);
+							effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
+							positionDKJr++;
+							setGrilleJeu(2,positionDKJr,DKJR);
+							afficherDKJr(10, (positionDKJr * 2) + 7,7);
+							etatDKJr = LIANE_BAS;
+						}
+						else
+						{
+							setGrilleJeu(3, positionDKJr);
+							effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
+							setGrilleJeu(2,positionDKJr,DKJR);
+							afficherDKJr(10, (positionDKJr * 2) + 7,8);
+							etatDKJr = LIANE_BAS;
+						}
+					}
+				}
 				break;
 			}
 			case LIANE_BAS:
-			
+			if(evenement == SDLK_DOWN)
+			{
+				setGrilleJeu(2, positionDKJr);
+				effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
+				setGrilleJeu(3, positionDKJr, DKJR);
+				afficherDKJr(11, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
+				etatDKJr = LIBRE_BAS;
+			}
 			break;
 			case DOUBLE_LIANE_BAS:
-
+				switch(evenement)
+				{
+					case SDLK_DOWN:
+					setGrilleJeu(2, positionDKJr);
+					effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
+					setGrilleJeu(3, positionDKJr, DKJR);
+					afficherDKJr(11, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
+					etatDKJr = LIBRE_BAS;
+					break;
+					case SDLK_UP:
+					setGrilleJeu(2, positionDKJr);
+					effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
+					setGrilleJeu(1, positionDKJr, DKJR);
+					afficherDKJr(7, (positionDKJr * 2) + 7,5);
+					break;
+				}
 			break;
 			case LIBRE_HAUT:
 			
@@ -324,9 +451,9 @@ void* FctThreadDKJr(void *)
 			
 			break;
 		}
+		pthread_mutex_unlock(&mutexEvenement);
+		pthread_mutex_unlock(&mutexGrilleJeu);
 	}
-	pthread_mutex_unlock(&mutexGrilleJeu);
-	pthread_mutex_unlock(&mutexEvenement);
 	pthread_exit(0);
 }
 	
