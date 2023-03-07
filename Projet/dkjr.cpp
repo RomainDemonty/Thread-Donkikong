@@ -210,15 +210,7 @@ void* FctThreadCle(void *)
       temps.tv_nsec = 700000000;
 	while(1)
 	{
-		pthread_mutex_lock(&mutexGrilleJeu);
-		grilleJeu[0][1].type = 0;
 		effacerCarres(3,12,2,3);
-		pthread_mutex_unlock(&mutexGrilleJeu);
-
-		pthread_mutex_lock(&mutexGrilleJeu);
-		grilleJeu[0][1].type = 4;
-		pthread_mutex_unlock(&mutexGrilleJeu);
-
 		afficherCle(i);
 		if(sens)
 		{
@@ -234,14 +226,20 @@ void* FctThreadCle(void *)
 			if(i == 1)
 			{
 				sens = 1;
+				pthread_mutex_lock(&mutexGrilleJeu);
+				grilleJeu[0][1].type = 4;
+				pthread_mutex_unlock(&mutexGrilleJeu);
 			}
 		}
 		nanosleep(&temps,NULL);
+		pthread_mutex_lock(&mutexGrilleJeu);
+		grilleJeu[0][1].type = 0;
+		pthread_mutex_unlock(&mutexGrilleJeu);
 	}
 
 	pthread_mutex_lock(&mutexGrilleJeu);
 	grilleJeu[0][1].type = 0;
-	effacerCarres(12,3,3,3);
+	effacerCarres(3,12,2,3);
 	pthread_mutex_unlock(&mutexGrilleJeu);
 
 	printf("Fin du thread de la cle\n");
@@ -440,7 +438,7 @@ void* FctThreadDKJr(void *)
 					setGrilleJeu(2, positionDKJr);
 					effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
 					setGrilleJeu(1, positionDKJr, DKJR);
-					afficherDKJr(7, (positionDKJr * 2) + 7,5);
+					afficherDKJr(7, (positionDKJr * 2) + 7,6);
 					break;
 				}
 			break;
