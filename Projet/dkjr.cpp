@@ -308,6 +308,7 @@ void* FctThreadDKJr(void *)
 	pthread_mutex_lock(&mutexGrilleJeu);
 	setGrilleJeu(3, 1, DKJR);
 	afficherDKJr(11, 9, 1);
+	afficherGrilleJeu();
 	etatDKJr = LIBRE_BAS;
 	positionDKJr = 1;
 	pthread_mutex_unlock(&mutexGrilleJeu);
@@ -334,7 +335,6 @@ void* FctThreadDKJr(void *)
 						afficherDKJr(11, (positionDKJr * 2) + 7,13);
 
 						//Vie en moins
-						//BUG
 						temps.tv_sec = 2;
 						temps.tv_nsec = 0;
 						printf("Buisson\n");
@@ -347,6 +347,7 @@ void* FctThreadDKJr(void *)
 						effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
 						//pthread_mutex_unlock(&mutexEvenement);
 						pthread_mutex_unlock(&mutexGrilleJeu);
+						afficherGrilleJeu();
 						vie++;
 						afficherEchec(vie);
 						pthread_exit(NULL);
@@ -393,40 +394,24 @@ void* FctThreadDKJr(void *)
 					}
 					else
 					{
-						//Le faire sauter au dessus du buisson, puis le mettre sur la lianne de droite
-						/*
-						if(positionDKJr == 0)
-						{
-							//le faire sauter normalement
 							setGrilleJeu(3, positionDKJr);
 							effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
 							setGrilleJeu(2,positionDKJr,DKJR);
 							afficherDKJr(10, (positionDKJr * 2) + 7,8);
+							etatDKJr = LIANE_BAS;
 
-							//petite pause pour découper le mouvement
 							pthread_mutex_unlock(&mutexGrilleJeu);
-							temps.tv_sec = 0;
-							temps.tv_nsec = 10000000000;
-							nanosleep(&temps, NULL);
-							pthread_mutex_lock(&mutexGrilleJeu);
+							temps.tv_sec = 1;
+							temps.tv_nsec = 400000000;
+							nanosleep(&temps,NULL);
+							afficherGrilleJeu();
 
-							//le remettre sur la première liane de base à gauche
+							pthread_mutex_lock(&mutexGrilleJeu);
 							setGrilleJeu(2, positionDKJr);
+							setGrilleJeu(3,positionDKJr,DKJR);
 							effacerCarres(10, (positionDKJr * 2) + 7, 2, 2);
-							positionDKJr++;
-							setGrilleJeu(2,positionDKJr,DKJR);
-							afficherDKJr(10, (positionDKJr * 2) + 7,7);
-							etatDKJr = LIANE_BAS;
-						}
-						else
-						{
-						*/
-							setGrilleJeu(3, positionDKJr);
-							effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);
-							setGrilleJeu(2,positionDKJr,DKJR);
-							afficherDKJr(10, (positionDKJr * 2) + 7,8);
-							etatDKJr = LIANE_BAS;
-						//}
+							afficherDKJr(11, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
+							etatDKJr = LIBRE_BAS;
 					}
 				}
 				break;
@@ -489,20 +474,83 @@ void* FctThreadDKJr(void *)
 								//Perte d'une vie si clé innacessible aussi non une cage en moins
 								if(grilleJeu[0][1].type == 4)
 								{
+									temps.tv_sec = 0;
+									temps.tv_nsec = 700000000;
 									printf("Vous avez attrapé la clé\n");
+									setGrilleJeu(1, positionDKJr);
+									afficherGrilleJeu();
+									positionDKJr--;
+
+									effacerCarres(7,13,2,2);
+									setGrilleJeu(0, positionDKJr,DKJR);
+									afficherDKJr(5, 12,9);
+									nanosleep(&temps,NULL);
+									
+									setGrilleJeu(0, positionDKJr,VIDE);
+									positionDKJr--;
+									setGrilleJeu(0, positionDKJr,DKJR);
+									afficherGrilleJeu();
+									
+									effacerCarres(5,12,3,2);
+									effacerCarres(3,12,2,3);
+									setGrilleJeu(0, positionDKJr);
+									afficherDKJr(3, 11,10);
+									nanosleep(&temps,NULL);
+									effacerCarres(3,11,3,2);
+
+									pthread_mutex_unlock(&mutexEvenement);
+									pthread_mutex_unlock(&mutexGrilleJeu);
+									afficherGrilleJeu();
+									pthread_exit(NULL);
 								}
 								else
 								{
-									temps.tv_sec = 2;
-									temps.tv_nsec = 0;
+									temps.tv_sec = 0;
+									temps.tv_nsec = 700000000;
 									printf("Raté\n");
+
+									
+									//affichage de 11 12 13
+									printf("M1\n");
+									setGrilleJeu(1, positionDKJr);
+									positionDKJr--;
+									effacerCarres(7,13,2,2);
+									setGrilleJeu(0, positionDKJr,DKJR);
+									afficherDKJr(5, 12,9);
+									pthread_mutex_unlock(&mutexGrilleJeu);
+									afficherGrilleJeu();
+									nanosleep(&temps,NULL);
+
+									//M2
+									printf("M2\n");
+									pthread_mutex_lock(&mutexGrilleJeu);
+									effacerCarres(5,12,3,2);
+									setGrilleJeu(0, positionDKJr,VIDE);
+									afficherDKJr(6, 11,12);
+									setGrilleJeu(1, positionDKJr,DKJR);
+									pthread_mutex_unlock(&mutexGrilleJeu);
+									afficherGrilleJeu();
+									nanosleep(&temps,NULL);
+
+									//M3
+									printf("M3\n");
+									pthread_mutex_lock(&mutexGrilleJeu);
+									effacerCarres(6,11,3,2);
+									setGrilleJeu(1, positionDKJr,VIDE);
+									setGrilleJeu(3, 0, DKJR);
+									afficherDKJr(3, 11,13);
+									pthread_mutex_unlock(&mutexGrilleJeu);
+									afficherGrilleJeu();
+									nanosleep(&temps,NULL);
+
+									pthread_mutex_lock(&mutexGrilleJeu);
+									effacerCarres(11,7,2,2);
+									setGrilleJeu(3, 0, VIDE);
+									afficherGrilleJeu();
+
 									pthread_mutex_unlock(&mutexEvenement);
 									pthread_mutex_unlock(&mutexGrilleJeu);
-									nanosleep(&temps,NULL);
-									pthread_mutex_lock(&mutexGrilleJeu);
-									setGrilleJeu(1, positionDKJr);
-									effacerCarres(7, (positionDKJr * 2) + 7, 2, 2);
-									pthread_mutex_unlock(&mutexGrilleJeu);
+									afficherGrilleJeu();
 									vie++;
 									afficherEchec(vie);
 									pthread_exit(NULL);
@@ -550,6 +598,19 @@ void* FctThreadDKJr(void *)
 								setGrilleJeu(0, positionDKJr, DKJR);
 								afficherDKJr(6, (positionDKJr * 2) + 7,8);
 								etatDKJr = LIANE_HAUT;
+
+								pthread_mutex_unlock(&mutexGrilleJeu);
+								temps.tv_sec = 1;
+								temps.tv_nsec = 400000000;
+								nanosleep(&temps,NULL);
+								afficherGrilleJeu();
+
+								pthread_mutex_lock(&mutexGrilleJeu);
+								setGrilleJeu(0, positionDKJr);
+								setGrilleJeu(1,positionDKJr,DKJR);
+								effacerCarres(6, (positionDKJr * 2) + 7, 2, 2);
+								afficherDKJr(7, (positionDKJr * 2) + 7,((positionDKJr - 1) % 4) + 1);
+								etatDKJr = LIBRE_HAUT;
 							}
 						}
 					break;
@@ -570,6 +631,7 @@ void* FctThreadDKJr(void *)
 		}
 		pthread_mutex_unlock(&mutexEvenement);
 		pthread_mutex_unlock(&mutexGrilleJeu);
+		afficherGrilleJeu();
 	}
 	pthread_exit(0);
 }
