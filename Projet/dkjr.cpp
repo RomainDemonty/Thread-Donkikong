@@ -93,6 +93,12 @@ sigset_t sigpro;
 
 int main(int argc, char* argv[])
 {
+	pthread_mutex_init(&mutexEvenement,NULL);
+	pthread_mutex_init(&mutexGrilleJeu,NULL);
+	pthread_mutex_init(&mutexDK,NULL);
+
+	pthread_cond_init(&condDK,NULL);
+
 	sigAct.sa_handler = HandlerSIGQUIT;
 	sigemptyset(&sigAct.sa_mask);
 	sigAct.sa_flags = 0;
@@ -124,6 +130,7 @@ int main(int argc, char* argv[])
 
 	pthread_create(&threadCle,NULL,(void*(*)(void*))FctThreadCle,NULL);
 	pthread_create(&threadEvenements,NULL,(void*(*)(void*))FctThreadEvenements,NULL);
+	pthread_create(&threadDK,NULL,(void*(*)(void*))FctThreadDK,NULL);
 
 	while(vie < 3)
 	{
@@ -216,6 +223,7 @@ void* FctThreadCle(void *)
       temps.tv_nsec = 700000000;
 	while(1)
 	{
+		pthread_mutex_lock(&mutexGrilleJeu);
 		effacerCarres(3,12,2,3);
 		if(sens)
 		{
@@ -232,13 +240,12 @@ void* FctThreadCle(void *)
 			if(i == 1)
 			{
 				sens = 1;
-				pthread_mutex_lock(&mutexGrilleJeu);
 				grilleJeu[0][1].type = 4;
 				printf("Attrape moi !\n");
-				pthread_mutex_unlock(&mutexGrilleJeu);
 			}
 			afficherCle(i);
 		}
+		pthread_mutex_unlock(&mutexGrilleJeu);
 		nanosleep(&temps,NULL);
 		pthread_mutex_lock(&mutexGrilleJeu);
 		grilleJeu[0][1].type = 0;
@@ -335,7 +342,7 @@ void* FctThreadDKJr(void *)
 						afficherDKJr(11, (positionDKJr * 2) + 7,13);
 
 						//Vie en moins
-						temps.tv_sec = 2;
+						temps.tv_sec = 1;
 						temps.tv_nsec = 0;
 						printf("Buisson\n");
 						pthread_mutex_unlock(&mutexEvenement);
@@ -475,7 +482,7 @@ void* FctThreadDKJr(void *)
 								if(grilleJeu[0][1].type == 4)
 								{
 									temps.tv_sec = 0;
-									temps.tv_nsec = 700000000;
+									temps.tv_nsec = 500000000;
 									printf("Vous avez attrapé la clé\n");
 									setGrilleJeu(1, positionDKJr);
 									afficherGrilleJeu();
@@ -501,12 +508,20 @@ void* FctThreadDKJr(void *)
 									pthread_mutex_unlock(&mutexEvenement);
 									pthread_mutex_unlock(&mutexGrilleJeu);
 									afficherGrilleJeu();
+
+									pthread_mutex_lock(&mutexDK);
+									//valeur a changer
+									MAJDK = true;
+									pthread_mutex_unlock(&mutexDK);
+									pthread_cond_signal(&condDK);
+
 									pthread_exit(NULL);
 								}
 								else
 								{
 									temps.tv_sec = 0;
-									temps.tv_nsec = 700000000;
+									//temps.tv_nsec = 500000000;
+									temps.tv_nsec = 250000000;
 									printf("Raté\n");
 
 									
@@ -636,3 +651,54 @@ void* FctThreadDKJr(void *)
 	pthread_exit(0);
 }
 	
+void* FctThreadDK(void *)
+{
+	struct timespec temps;
+	temps.tv_sec = 3;
+	temps.tv_nsec = 700000000;
+	int NbCage = 4;
+	while(1)
+	{
+		pthread_mutex_lock(&mutexDK);
+		pthread_cond_wait(&condDK,&mutexDK);
+		if(MAJDK == true)
+		{
+			pthread_mutex_lock(&mutexGrilleJeu);
+			switch (NbCage) 
+			{
+				case 1 :
+					NbCage = 4;
+					effacerCarres(4,9,2,3);
+					afficherRireDK();
+					nanosleep(&temps,NULL);
+					effacerCarres(3,8,2,2);
+					afficherCage(1);
+					afficherCage(2);
+					afficherCage(3);
+					afficherCage(4);
+				break;
+				case 2 :
+					effacerCarres(4,7,2,2);
+					afficherCage(4);
+					NbCage--;
+				break;
+				case 3 :
+					effacerCarres(2,9,2,2);
+					afficherCage(4);
+					NbCage--;
+				break;
+				case 4 :
+					effacerCarres(2,7,2,2);
+					afficherCage(4);
+					NbCage--;
+				break;
+			}
+			MAJDK == false;
+			pthread_mutex_unlock(&mutexGrilleJeu);
+		}
+		printf("J'ai bien reçu\n");
+		pthread_mutex_unlock(&mutexDK);
+	}
+
+	return 0;
+}
