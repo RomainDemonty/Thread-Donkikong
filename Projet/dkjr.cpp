@@ -96,7 +96,9 @@ int main(int argc, char* argv[])
 	pthread_mutex_init(&mutexEvenement,NULL);
 	pthread_mutex_init(&mutexGrilleJeu,NULL);
 	pthread_mutex_init(&mutexDK,NULL);
+	pthread_mutex_init(&mutexScore,NULL);
 
+	pthread_cond_init(&condScore,NULL);
 	pthread_cond_init(&condDK,NULL);
 
 	sigAct.sa_handler = HandlerSIGQUIT;
@@ -126,11 +128,11 @@ int main(int argc, char* argv[])
 	//effacerCarres(9, 10, 2, 1);
 
 	afficherEchec(vie);//1
-	afficherScore(0);//1999
 
 	pthread_create(&threadCle,NULL,(void*(*)(void*))FctThreadCle,NULL);
 	pthread_create(&threadEvenements,NULL,(void*(*)(void*))FctThreadEvenements,NULL);
 	pthread_create(&threadDK,NULL,(void*(*)(void*))FctThreadDK,NULL);
+	pthread_create(&threadScore,NULL,(void*(*)(void*))FctThreadScore,NULL);
 
 	while(vie < 3)
 	{
@@ -143,29 +145,6 @@ int main(int argc, char* argv[])
 	sigaddset(&sigpro,SIGQUIT);
 	sigprocmask(SIG_SETMASK,&sigpro,NULL);
 
-	/*
-	while (1)
-	{
-	    evt = lireEvenement();
-
-	    switch (evt)
-	    {
-		case SDL_QUIT:
-			exit(0);
-		case SDLK_UP:
-			printf("KEY_UP\n");
-			break;
-		case SDLK_DOWN:
-			printf("KEY_DOWN\n");
-			break;
-		case SDLK_LEFT:
-			printf("KEY_LEFT\n");
-			break;
-		case SDLK_RIGHT:
-			printf("KEY_RIGHT\n");
-	    }
-	}
-	*/
 	while(1)
 	{
 
@@ -509,6 +488,15 @@ void* FctThreadDKJr(void *)
 									pthread_mutex_unlock(&mutexGrilleJeu);
 									afficherGrilleJeu();
 
+									//Changement du score
+									pthread_mutex_lock(&mutexScore);
+									//valeur a changer
+									score = score +10;
+									MAJScore = true;
+									pthread_mutex_unlock(&mutexScore);
+									pthread_cond_signal(&condScore);
+
+									//Changement de la cage
 									pthread_mutex_lock(&mutexDK);
 									//valeur a changer
 									MAJDK = true;
@@ -654,7 +642,7 @@ void* FctThreadDKJr(void *)
 void* FctThreadDK(void *)
 {
 	struct timespec temps;
-	temps.tv_sec = 3;
+	temps.tv_sec = 0;
 	temps.tv_nsec = 700000000;
 	int NbCage = 4;
 	while(1)
@@ -669,8 +657,18 @@ void* FctThreadDK(void *)
 				case 1 :
 					NbCage = 4;
 					effacerCarres(4,9,2,3);
+
+					//Changement du score
+					pthread_mutex_lock(&mutexScore);
+					//valeur a changer
+					score = score +10;
+					MAJScore = true;
+					pthread_mutex_unlock(&mutexScore);
+					pthread_cond_signal(&condScore);
+
 					afficherRireDK();
 					nanosleep(&temps,NULL);
+
 					effacerCarres(3,8,2,2);
 					afficherCage(1);
 					afficherCage(2);
@@ -696,9 +694,32 @@ void* FctThreadDK(void *)
 			MAJDK == false;
 			pthread_mutex_unlock(&mutexGrilleJeu);
 		}
-		printf("J'ai bien reçu\n");
+		printf("J'ai bien reçu le changement de cage\n");
 		pthread_mutex_unlock(&mutexDK);
 	}
 
+	return 0;
+}
+
+void* FctThreadScore (void *)
+{
+	int AncienScore = 0;
+	afficherScore(0);
+	while(1)
+	{
+		pthread_mutex_lock(&mutexScore);
+		pthread_cond_wait(&condScore,&mutexScore);
+		if(MAJScore == true)
+		{
+			if(AncienScore != score)
+			{
+				afficherScore(score);
+				AncienScore = score;
+			}
+			MAJDK == false;
+		}
+		printf("J'ai bien reçu le score\n");
+		pthread_mutex_unlock(&mutexScore);
+	}
 	return 0;
 }
