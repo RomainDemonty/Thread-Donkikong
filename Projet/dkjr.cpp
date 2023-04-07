@@ -116,10 +116,12 @@ int main(int argc, char* argv[])
 	//sigAct.sa_flags = 0;
 	sigaction(SIGINT,&sigAct,NULL);
 
+	/*
 	sigAct.sa_handler = HandlerSIGUSR1;
 	//sigemptyset(&sigAct.sa_mask);
 	//sigAct.sa_flags = 0;
 	sigaction(SIGUSR1,&sigAct,NULL);
+	*/
 
 	pthread_key_create(&keySpec,NULL);
 
@@ -164,10 +166,11 @@ int main(int argc, char* argv[])
 	sigprocmask(SIG_SETMASK,&sigpro,NULL);
 
 	//Test4
+	/*
 	sigemptyset(&sigpro);
 	sigaddset(&sigpro,SIGUSR1);
 	sigprocmask(SIG_SETMASK,&sigpro,NULL);
-	
+	*/
 
 	while(vie < 3)
 	{
@@ -427,11 +430,11 @@ void* FctThreadDKJr(void *)
 					printf("Aie j'ai été touché par un corbeau\n");
 
 					//envoie de SIGUSR1
-					pthread_kill(pthread_self(),SIGUSR1);
+					pthread_kill(grilleJeu[2][positionDKJr].tid, SIGUSR1);
 
 					effacerCarres(11, (positionDKJr * 2) + 7, 2, 2);	
 					vie++;
-					
+
 					pthread_exit(0);
 				}
 
@@ -831,7 +834,7 @@ void* FctThreadEnnemis (void *)
 	sigprocmask(SIG_SETMASK,&sigpro,NULL);
 
 	alarm(15);
-	
+	pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);
 	while(1)
 	{
 		temps.tv_sec = delaiEnnemis/1000;
@@ -842,12 +845,12 @@ void* FctThreadEnnemis (void *)
 		if((rand()%2))
 		{
 			printf("Le croco arrive\n");
-			//pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);
+			
 		}
 		else
 		{
 			printf("Le corbeau arrive\n");
-			pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);
+			//pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);
 		}
 	}
 }
@@ -855,7 +858,7 @@ void* FctThreadEnnemis (void *)
 void HandlerSIGUSR1(int)
 {
 	//Tue le thread Corbeau
-	printf("Hello");
+	printf("Le corbeau est mort pas DKJR\n");
 	int *pos = (int*) pthread_getspecific(keySpec) ;//Position du corbeau
 
 	effacerCarres(9, ((*pos)*2) + 8, 2, 1);
@@ -865,11 +868,17 @@ void HandlerSIGUSR1(int)
 	pthread_mutex_unlock(&mutexGrilleJeu);
 
 	free(pos);
-	pthread_exit(NULL);
+	//pthread_exit(NULL);
+	pthread_cancel(pthread_self());
 }
 
 void* FctThreadCorbeau (void *)
 {
+	struct sigaction sa;
+	sa.sa_handler = HandlerSIGUSR1;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGUSR1, &sa, NULL);
 	/*
 	sigset_t Mask_Corbeau;
 	sigfillset(&Mask_Corbeau);
@@ -877,11 +886,13 @@ void* FctThreadCorbeau (void *)
 	sigprocmask(SIG_SETMASK, &Mask_Corbeau, NULL);
 	*/
 
+	/*
 	sigset_t set;
    	sigemptyset(&set);
     	sigaddset(&set, SIGUSR1);
 	//sigaddset(&set, SIGQUIT);
    	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+	*/
 
 	struct timespec temps;
       temps.tv_sec = 0;
@@ -937,5 +948,82 @@ void* FctThreadCorbeau (void *)
 
 	effacerCarres(9, ((coco-1)*2) + 8, 2, 1);
 	free(p);
+	pthread_exit(NULL);
+}
+
+void* FctThreadCroco(void*)
+{
+	S_CROCO Croco;
+	Croco.position = 0;//Permet de savoir à quelle position se trouve le croco
+	Croco.haut = true;
+	struct timespec temps;
+      temps.tv_sec = 0;
+      temps.tv_nsec = 700000000;
+
+	while(Croco.position  < 14)
+	{
+		printf("Croco %d\n",Croco.position);
+		pthread_mutex_lock(&mutexGrilleJeu);
+		if(Croco.haut == true)
+		{
+			if(Croco.position == 6)
+			{
+				//croco qui tombe
+				effacerCarres(8, ((Croco.position)*2) + 9, 1, 1);
+				setGrilleJeu(1,Croco.position-1,VIDE);
+				afficherCroco(22, 3);
+				//Changement en false se haut
+				Croco.haut = false;
+			}
+			else
+			{
+				effacerCarres(8, ((Croco.position)*2) + 9, 1, 1);
+				setGrilleJeu(1,Croco.position +1,VIDE);
+				setGrilleJeu(1,Croco.position + 2, CROCO,pthread_self());
+				afficherCroco((Croco.position+1)*2 +9, Croco.position%2 +1);
+				printf("Croco déplacement: \n");
+				afficherGrilleJeu();
+			}
+		}
+		else
+		{
+			if(Croco.position == 7)
+			{
+				effacerCarres(9, 23, 1, 1);
+				setGrilleJeu(3,7, CROCO,pthread_self());
+				afficherCroco(22 - ((Croco.position-7)*2), Croco.position%2 +3);
+				printf("Croco déplacement: \n");
+				afficherGrilleJeu();
+			}
+			else
+			{
+				effacerCarres(12, 22 - ((Croco.position-8)*2), 1, 1);
+				setGrilleJeu(3,14 - Croco.position+1, VIDE);
+				setGrilleJeu(3,14 - Croco.position, CROCO,pthread_self());
+				if(Croco.position%2 == 0)
+				{
+					afficherCroco(22 - ((Croco.position-7)*2), 5);
+				}
+				else
+				{
+					afficherCroco(22 - ((Croco.position-7)*2), 4);
+				}
+				
+				printf("Croco déplacement: \n");
+				afficherGrilleJeu();
+			}
+		}
+
+		pthread_mutex_unlock(&mutexGrilleJeu);
+		nanosleep(&temps,NULL);
+		Croco.position++;
+	}
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(3,1, VIDE);
+	afficherGrilleJeu();
+	pthread_mutex_unlock(&mutexGrilleJeu);
+	effacerCarres(12, 22 - ((Croco.position-8)*2), 1, 1);
+	printf("Croco disparu\n");
+	
 	pthread_exit(NULL);
 }
