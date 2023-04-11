@@ -834,7 +834,7 @@ void* FctThreadEnnemis (void *)
 	sigprocmask(SIG_SETMASK,&sigpro,NULL);
 
 	alarm(15);
-	pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);
+	
 	while(1)
 	{
 		temps.tv_sec = delaiEnnemis/1000;
@@ -845,12 +845,12 @@ void* FctThreadEnnemis (void *)
 		if((rand()%2))
 		{
 			printf("Le croco arrive\n");
-			
+			pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);
 		}
 		else
 		{
 			printf("Le corbeau arrive\n");
-			//pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);
+			pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);
 		}
 	}
 }
@@ -951,6 +951,25 @@ void* FctThreadCorbeau (void *)
 	pthread_exit(NULL);
 }
 
+void HandlerSIGUSR2(int)
+{
+	/*
+	//Tue le thread Cro
+	printf("Le corbeau est mort pas DKJR\n");
+	int *pos = (int*) pthread_getspecific(keySpec) ;//Position du corbeau
+
+	effacerCarres(9, ((*pos)*2) + 8, 2, 1);
+
+	pthread_mutex_lock(&mutexGrilleJeu);
+	setGrilleJeu(2,*pos, VIDE);
+	pthread_mutex_unlock(&mutexGrilleJeu);
+
+	free(pos);
+	//pthread_exit(NULL);
+	pthread_cancel(pthread_self());
+	*/
+}
+
 void* FctThreadCroco(void*)
 {
 	S_CROCO Croco;
@@ -959,6 +978,13 @@ void* FctThreadCroco(void*)
 	struct timespec temps;
       temps.tv_sec = 0;
       temps.tv_nsec = 700000000;
+
+	S_CROCO *p = (S_CROCO*) malloc(sizeof(S_CROCO));
+
+	p->position = Croco.position;
+	p->haut = Croco.haut;
+	//setspecific
+	pthread_setspecific(keySpec,p);
 
 	while(Croco.position  < 14)
 	{
@@ -970,7 +996,9 @@ void* FctThreadCroco(void*)
 			{
 				//croco qui tombe
 				effacerCarres(8, ((Croco.position)*2) + 9, 1, 1);
-				setGrilleJeu(1,Croco.position-1,VIDE);
+				setGrilleJeu(1,7,VIDE);
+				printf("Croco déplacement: \n");
+				afficherGrilleJeu();
 				afficherCroco(22, 3);
 				//Changement en false se haut
 				Croco.haut = false;
@@ -1013,7 +1041,9 @@ void* FctThreadCroco(void*)
 				afficherGrilleJeu();
 			}
 		}
-
+		p->position = Croco.position;
+		p->haut = Croco.haut;
+		pthread_setspecific(keySpec,p);
 		pthread_mutex_unlock(&mutexGrilleJeu);
 		nanosleep(&temps,NULL);
 		Croco.position++;
@@ -1024,6 +1054,8 @@ void* FctThreadCroco(void*)
 	pthread_mutex_unlock(&mutexGrilleJeu);
 	effacerCarres(12, 22 - ((Croco.position-8)*2), 1, 1);
 	printf("Croco disparu\n");
+
+	free(p);
 	
 	pthread_exit(NULL);
 }
