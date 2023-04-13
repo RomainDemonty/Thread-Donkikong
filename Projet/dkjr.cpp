@@ -440,7 +440,7 @@ void* FctThreadDKJr(void *)
 							printf("Aie j'ai touché par un croco\n");
 
 							//On met son ancienne position à zéro
-							pthread_mutex_lock(&mutexGrilleJeu);
+							//pthread_mutex_lock(&mutexGrilleJeu);
 
 							setGrilleJeu(3, positionDKJr, VIDE);
 
@@ -478,7 +478,7 @@ void* FctThreadDKJr(void *)
 						printf("Aie j'ai touché par un croco\n");
 
 						//On met son ancienne position à zéro
-						pthread_mutex_lock(&mutexGrilleJeu);
+						//pthread_mutex_lock(&mutexGrilleJeu);
 
 						setGrilleJeu(3, positionDKJr, VIDE);
 
@@ -561,7 +561,7 @@ void* FctThreadDKJr(void *)
 							printf("Aie j'ai été touché par un croco\n");
 
 							//On met son ancienne position à zéro
-							pthread_mutex_lock(&mutexGrilleJeu);
+							//pthread_mutex_lock(&mutexGrilleJeu);
 
 							setGrilleJeu(2, positionDKJr, VIDE);
 
@@ -715,7 +715,7 @@ void* FctThreadDKJr(void *)
 								if(grilleJeu[0][1].type == 4)
 								{
 									temps.tv_sec = 0;
-									temps.tv_nsec = 500000000;
+									temps.tv_nsec = 700000000;
 									printf("Vous avez attrapé la clé\n");
 									setGrilleJeu(1, positionDKJr);
 									afficherGrilleJeu();
@@ -761,9 +761,9 @@ void* FctThreadDKJr(void *)
 								}
 								else
 								{
-									temps.tv_sec = 0;
+									temps.tv_sec = 1;
 									//temps.tv_nsec = 500000000;
-									temps.tv_nsec = 250000000;
+									temps.tv_nsec = 0;
 									printf("Raté\n");
 
 									
@@ -848,7 +848,7 @@ void* FctThreadDKJr(void *)
 							printf("Aie j'ai touché par un croco\n");
 
 							//On met son ancienne position à zéro
-							pthread_mutex_lock(&mutexGrilleJeu);
+							//pthread_mutex_lock(&mutexGrilleJeu);
 
 							setGrilleJeu(1, positionDKJr, VIDE);
 
@@ -1034,6 +1034,7 @@ void* FctThreadDK(void *)
 		}
 		printf("J'ai bien reçu le changement de cage\n");
 		pthread_mutex_unlock(&mutexDK);
+		afficherGrilleJeu();
 	}
 
 	return 0;
@@ -1041,7 +1042,6 @@ void* FctThreadDK(void *)
 
 void* FctThreadScore (void *)
 {
-	int AncienScore = 0;
 	afficherScore(0);
 	while(1)
 	{
@@ -1049,11 +1049,8 @@ void* FctThreadScore (void *)
 		pthread_cond_wait(&condScore,&mutexScore);
 		if(MAJScore == true)
 		{
-			if(AncienScore != score)
-			{
-				afficherScore(score);
-				AncienScore = score;
-			}
+			printf("Score +10\n\n");
+			afficherScore(score);
 			MAJDK == false;
 		}
 		printf("J'ai bien reçu le score\n");
@@ -1088,7 +1085,7 @@ void* FctThreadEnnemis (void *)
 	
 	while(1)
 	{
-		temps.tv_sec = delaiEnnemis/1000;
+		temps.tv_sec = delaiEnnemis/1000 + 3;
 		temps.tv_nsec = (delaiEnnemis%1000)*100000;
 
 		nanosleep(&temps,NULL);
@@ -1096,12 +1093,12 @@ void* FctThreadEnnemis (void *)
 		if((rand()%2))
 		{
 			printf("Le corbeau arrive\n");
-			pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);
+			pthread_create(&threadCorbeau,NULL,(void*(*)(void*))FctThreadCorbeau,NULL);//Crée un bug au niveau des scores
 		}
 		else
 		{	
 			printf("Le croco arrive\n");
-			pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);
+			pthread_create(&threadCroco,NULL,(void*(*)(void*))FctThreadCroco,NULL);//Crée un bug au niveau des scores
 		}
 	}
 }
@@ -1246,13 +1243,13 @@ void* FctThreadCroco(void*)
 		pthread_mutex_lock(&mutexGrilleJeu);
 		if(Croco.haut == true)
 		{
-			if(grilleJeu[1][Croco.position+2].type != 1 || Croco.position > 5)//Si la position du croco est libre
+			if(grilleJeu[1][Croco.position+2].type != 1)//Si la position du croco est libre
 			{
 				if(Croco.position == 6)
 				{
 					//croco qui tombe
 					effacerCarres(8, ((Croco.position)*2) + 9, 1, 1);
-					setGrilleJeu(1,6,VIDE);
+					setGrilleJeu(1,7,VIDE);
 					//printf("Croco déplacement: \n");
 					//afficherGrilleJeu();
 					afficherCroco(22, 3);
