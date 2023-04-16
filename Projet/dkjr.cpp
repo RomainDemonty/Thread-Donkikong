@@ -93,13 +93,7 @@ sigset_t sigpro;
 
 int main(int argc, char* argv[])
 {
-	pthread_mutex_init(&mutexEvenement,NULL);
-	pthread_mutex_init(&mutexGrilleJeu,NULL);
-	pthread_mutex_init(&mutexDK,NULL);
-	pthread_mutex_init(&mutexScore,NULL);
-
-	pthread_cond_init(&condScore,NULL);
-	pthread_cond_init(&condDK,NULL);
+	ouvrirFenetreGraphique();
 
 	sigAct.sa_handler = HandlerSIGQUIT;
 	sigemptyset(&sigAct.sa_mask);
@@ -120,9 +114,15 @@ int main(int argc, char* argv[])
 
 	pthread_key_create(&keySpec,NULL);
 
-	srand((unsigned) time(NULL));
+	pthread_mutex_init(&mutexEvenement,NULL);
+	pthread_mutex_init(&mutexGrilleJeu,NULL);
+	pthread_mutex_init(&mutexDK,NULL);
+	pthread_mutex_init(&mutexScore,NULL);
 
-	ouvrirFenetreGraphique();
+	pthread_cond_init(&condScore,NULL);
+	pthread_cond_init(&condDK,NULL);
+
+	srand((unsigned) time(NULL));
 
 	pthread_create(&threadCle,NULL,(void*(*)(void*))FctThreadCle,NULL);
 	pthread_create(&threadEvenements,NULL,(void*(*)(void*))FctThreadEvenements,NULL);
@@ -163,6 +163,8 @@ int main(int argc, char* argv[])
 	}
 
 	afficherEchec(vie);
+	pthread_mutex_lock(&mutexGrilleJeu);
+	printf("/********GAME OVER********/\n");
 
 	while(1)
 	{
@@ -426,7 +428,6 @@ void* FctThreadDKJr(void *)
 					}
 					else
 					{
-						/*-----------------------------------------FAIT--------------------------------------*/
 						if(grilleJeu[3][positionDKJr-1].type != 2)
 						{
 							setGrilleJeu(3, positionDKJr);
@@ -464,7 +465,6 @@ void* FctThreadDKJr(void *)
 				case SDLK_RIGHT:
 				if(positionDKJr < 7)
 				{
-					/*---------------------------------FAIT-----------------------------------------------*/
 					if(grilleJeu[3][positionDKJr+1].type != 2)
 					{
 						setGrilleJeu(3, positionDKJr);
@@ -673,7 +673,6 @@ void* FctThreadDKJr(void *)
 						}
 					break;
 					case SDLK_LEFT:
-						/*----------------------------------------FAIT---------------------------------------*/
 						if(positionDKJr > 3)
 						{
 							if(grilleJeu[1][positionDKJr - 1].type != 2)
@@ -715,7 +714,7 @@ void* FctThreadDKJr(void *)
 								if(grilleJeu[0][1].type == 4)
 								{
 									temps.tv_sec = 0;
-									temps.tv_nsec = 700000000;
+									temps.tv_nsec = 500000000;
 									printf("Vous avez attrapé la clé\n");
 									setGrilleJeu(1, positionDKJr);
 									afficherGrilleJeu();
@@ -761,9 +760,8 @@ void* FctThreadDKJr(void *)
 								}
 								else
 								{
-									temps.tv_sec = 1;
-									//temps.tv_nsec = 500000000;
-									temps.tv_nsec = 0;
+									temps.tv_sec = 0;
+									temps.tv_nsec = 500000000;
 									printf("Raté\n");
 
 									
@@ -815,12 +813,8 @@ void* FctThreadDKJr(void *)
 								}
 							}
 						}
-
 					break;
 					case SDLK_RIGHT: 
-						
-						
-						/*---------------------------------------FAIT----------------------------------------*/
 						if(grilleJeu[1][positionDKJr+1].type != 2)
 						{
 							if(positionDKJr < 7)
